@@ -6,10 +6,11 @@ declare_id!("6LZd2BokfNYboL3ZunXVnNHxoBVQ7XAo3Sh42vX8gdBa");
 pub mod escrow {
     use super::*;
 
-    pub fn initialize(ctx: Context<InitializeEscrow>, amount: u64) -> Result<()> {
+    pub fn initialize(ctx: Context<InitializeEscrow>, amount: u64, order_id: String) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
         escrow.client = ctx.accounts.client.key();
         escrow.freelancer = ctx.accounts.freelancer.key();
+        escrow.order_id = order_id;
         escrow.amount = amount;
         escrow.bump = ctx.bumps.vault;
 
@@ -34,13 +35,13 @@ pub mod escrow {
         require_keys_eq!(ctx.accounts.client.key(), escrow.client);
 
         let amount = escrow.amount;
-        let seeds = &[
-            b"detork-escrow",
-            escrow.client.as_ref(),
-            escrow.freelancer.as_ref(),
-            &[escrow.bump],
-        ];
-        let signer_seed = &[&seeds[..]];
+        // let seeds = &[
+        //     b"detork-escrow",
+        //     escrow.client.as_ref(),
+        //     escrow.freelancer.as_ref(),
+        //     &[escrow.bump],
+        // ];
+        // let signer_seed = &[&seeds[..]];
         // Transfer funds from PDA vault to freelancer
         **ctx
             .accounts
@@ -58,7 +59,7 @@ pub mod escrow {
 
 #[derive(Accounts)]
 pub struct InitializeEscrow<'info> {
-    #[account(init, payer=client, space=8+32+32+8+1)]
+    #[account(init, payer=client, space=8+32+32+8+4+24+1)]
     pub escrow: Account<'info, Escrow>,
 
     #[account(mut)]
@@ -66,7 +67,7 @@ pub struct InitializeEscrow<'info> {
 
     pub freelancer: UncheckedAccount<'info>,
 
-    #[account(mut, seeds=[b"detork-escrow", client.key().as_ref(), freelancer.key().as_ref()], bump)]
+    #[account(mut, seeds=[b"detork-escrow", client.key().as_ref(), freelancer.key().as_ref(), escrow.order_id.as_bytes()], bump)]
     pub vault: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
@@ -83,7 +84,7 @@ pub struct ReleaseFunds<'info> {
     #[account(mut)]
     pub freelancer: SystemAccount<'info>,
 
-    #[account(mut, seeds=[b"detork-escrow", client.key().as_ref(), freelancer.key().as_ref()], bump=escrow.bump)]
+    #[account(mut, seeds=[b"detork-escrow", client.key().as_ref(), freelancer.key().as_ref(), escrow.order_id.as_bytes()], bump=escrow.bump)]
     pub vault: UncheckedAccount<'info>,
 }
 
@@ -91,6 +92,7 @@ pub struct ReleaseFunds<'info> {
 pub struct Escrow {
     pub client: Pubkey,
     pub freelancer: Pubkey,
+    pub order_id: String,
     pub amount: u64,
     pub bump: u8,
 }
